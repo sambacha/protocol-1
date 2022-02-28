@@ -80,6 +80,8 @@ contract ArtistV4 is ERC721Upgradeable, IERC2981Upgradeable, OwnableUpgradeable 
         keccak256(
             'EditionInfo(address contractAddress,address buyerAddress,uint256 editionId,uint256 requestedTokenId)'
         );
+    // editionId => buyer address => token id
+    mapping(uint256 => mapping(address => uint256)) soldTokens;
 
     // ================================
     // EVENTS
@@ -240,12 +242,13 @@ contract ArtistV4 is ERC721Upgradeable, IERC2981Upgradeable, OwnableUpgradeable 
         // Don't allow purchases after the end time
         require(endTime > block.timestamp, 'Auction has ended');
 
-        // If presale, tokenId should be the one requested by the buyer
-        uint256 tokenId = _requestedTokenId;
-        if (tokenId == 0) {
-            //  if no _requestedTokenId set tokenId by packing editionId in the top bits
-            tokenId = (_editionId << 128) | newNumSold;
-        }
+        // create token id
+        uint256 tokenId = (_editionId << 128) | newNumSold;
+
+        require(soldTokens[_editionId][msg.sender] == 0, 'No repeat purchases');
+
+        // store the buyer's address to prevent multiple purchases
+        soldTokens[_editionId][msg.sender] = tokenId;
 
         // Send funds to the funding recipient.
         _sendFunds(editions[_editionId].fundingRecipient, msg.value);
